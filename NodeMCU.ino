@@ -1,26 +1,37 @@
-
 #define BLYNK_PRINT Serial
 #include <ESP8266WiFi.h>
 #include <Adafruit_NeoPixel.h>
 #include <BlynkSimpleEsp8266.h>
 #define FAVCOLORS sizeof(myColors) / 3
 #define PIN D6
-#define Pixels 5
+#define Pixels 54
+BlynkTimer timer;
+
 // You should get Auth Token in the Blynk App.
-char auth[] = "75349cf51e1647bc8e25faf1af4a526e";
-// Your WiFi credentials.
-// Set password to "" for open networks.
+char auth[] = "57d1620dbb894e1e89b923a054a1c710";
 char ssid[] = "D-link";
 char pass[] = "Ayyagari_123";
+
 int red = 0;
 int green = 0;
 int blue = 0;
+
 int strb;
 int rain;
 int rndstrb;
 int twinkle;
+
 uint8_t myColors[][3] = {{232, 100, 255},   // purple
   {255,0,0},
+  {255,255,255},
+  {50,0,0},
+  {0,255,255},
+  {125,125,0},
+  {0,125,0},
+  {0,0,125},
+  {0,0,255},
+  {59,59,59},
+  {255,255,0},
   {0, 255, 0},
   {255, 0, 255},
   {200, 200, 20},// yellow
@@ -30,15 +41,65 @@ uint8_t myColors[][3] = {{232, 100, 255},   // purple
   {108, 87, 229},    // Dark blue
   {162, 211, 172},   // Lt Green
 };
+int r,g,b;
+
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(Pixels, PIN, NEO_GRB + NEO_KHZ800);
+
+void reconnectBlynk()
+{
+   if(!Blynk.connected())
+   {
+    if(Blynk.connect())
+      BLYNK_LOG("Reconnected");
+    else 
+      BLYNK_LOG("Not Reconnected");
+   }
+}
 
 void setall(int R, int G, int B)
 {
   for (int i = 0; i < Pixels; i++) {
     strip.setPixelColor(i, strip.Color(R, G, B)); //  background color leds
-    strip.show(); // This sends the updated pixel color to the hardware.
+    // This sends the updated pixel color to the hardware.
   }
+  strip.show();
+}
+
+void Blynk_Delay(int milli)
+{
+   int end_time = millis() + milli;
+   while(millis() < end_time){
+       Blynk.run();
+       yield();
+   }
+}
+
+void fadein()
+{
+  for(uint8_t b=0; b <255; b++) 
+  {
+     for(uint8_t i=0; i < strip.numPixels(); i++) 
+     {
+        strip.setPixelColor(i, r*b/255, g*b/255, b*b/255);
+     }
+     strip.show();
+     delay(5);
+  }
+}
+
+void fadeout()
+{
+      for(uint8_t b=255; b > 0; b--) 
+      {
+        for(uint8_t i=0; i < strip.numPixels(); i++) 
+        {
+          strip.setPixelColor(i, r*b/255, g*b/255, b*b/255);
+        }
+        strip.show();
+        delay(5);
+      } 
+  
 }
 
 void rainbowCycle(int SpeedDelay)
@@ -46,7 +107,7 @@ void rainbowCycle(int SpeedDelay)
   byte *c;
   uint16_t i, j;
 
-  for (j = 0; j < 256 * 1; j++) { // 1 cycle of all colors on wheel
+  for (j = 0; j < 256 * 5; j++) { // 5 cycle of all colors on wheel
     for (i = 0; i < Pixels; i++) {
       c = Wheel(((i * 256 / Pixels) + j) & 255);
       strip.setPixelColor(i, strip.Color(*c, *(c + 1), *(c + 2)));
@@ -81,35 +142,40 @@ byte * Wheel(byte WheelPos) {
 
 void strobe()
 {
-  for (int i = 0; i < 10; i++)
+  int c = random(FAVCOLORS);
+  Serial.print(c);
+  r = myColors[c][0];
+  g = myColors[c][1];
+  b = myColors[c][2];
+  for (int i = 0; i < 5; i++)
   {
-    setall(red, green, blue);
-    strip.show();
-    delay(50);
+    setall(r, g, b);
+    delay(1);
     setall(0, 0, 0);
-    strip.show();
-    delay(50);
+    delay(100);
   }
   setall(red, green, blue);
 }
 
 void randstrobe()
 {
-  for (int i = 0; i < 5; i++)
-  {
+    for(int i=0;i<1;i++)
+    {  
     int c = random(FAVCOLORS);
     Serial.print(c);
-    int r = myColors[c][0];
-    int g = myColors[c][1];
-    int b = myColors[c][2];
-    setall(r, g, b);
-    strip.show();
-    delay(100);
-    setall(0, 0, 0);
-    strip.show();
-    delay(100);
-  }
-  setall(red, green, blue);
+    r = myColors[c][0];
+    g = myColors[c][1];
+    b = myColors[c][2];
+    fadein();
+    Blynk_Delay(5000);
+    fadeout();
+    delay(200);
+    //fadeout(r,g,b);
+    
+    //setall(0, 0, 0);
+    //strip.show();
+    //delay(100);
+    }
 }
 
 void Twinkle()
@@ -125,18 +191,16 @@ void Twinkle()
 
 void setup()
 {
-  // Debug console
   Serial.begin(9600);
   Blynk.begin(auth, ssid, pass);
+  timer.setInterval(60000,reconnectBlynk);
   delay(50);
   strip.begin();
   strip.setBrightness(255);
   strip.show();
-  // You can also specify server:
-  //Blynk.begin(auth, ssid, pass, "blynk-cloud.com", 80);
-  //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
 }
-BLYNK_WRITE(V1)
+
+BLYNK_WRITE(V1)//color
 {
   int R = param[0].asInt();
   int G = param[1].asInt();
@@ -148,89 +212,83 @@ BLYNK_WRITE(V1)
   {
     strip.setPixelColor(i, strip.Color(R, G, B)); //  background color leds
     strip.show(); // This sends the updated pixel color to the hardware.
-    delay(50);
+    delay(0);
   
   //setall(red,green,blue);
   }
 }
   
-BLYNK_WRITE(V2)
+BLYNK_WRITE(V2)//strobe
 {
   strb = param.asInt();
 }
 
-BLYNK_WRITE(V3)
+BLYNK_WRITE(V3)//rainbow
 {
   rain = param.asInt();
 }
 
-BLYNK_WRITE(V4)
+BLYNK_WRITE(V4)//random colours
 {
   rndstrb = param.asInt();
 }
 
-BLYNK_WRITE(V5)
+BLYNK_WRITE(V5)//twinkle
 {
   twinkle = param.asInt();
 }
 
 BLYNK_WRITE(V6)//purple
 {
-   for (int i = 0; i < Pixels; i++) 
-  {
-    strip.setPixelColor(i, strip.Color(255, 0, 255)); //  background color leds
-    strip.show(); // This sends the updated pixel color to the hardware.
-    delay(50);
-  
-  //setall(red,green,blue);
-  }
+  red = 255;
+  green = 0;
+  blue = 255;
+  setall(red,green,blue);
 }
 
 BLYNK_WRITE(V7)//hot pink
 {
-   for (int i = 0; i < Pixels; i++) 
-  {
-    strip.setPixelColor(i, strip.Color(255, 30, 45)); //  background color leds
-    strip.show(); // This sends the updated pixel color to the hardware.
-    delay(50);
+   red = 255;
+   green = 30;
+   blue = 45;
+   setall(red,green,blue);
   
-  //setall(red,green,blue);
-  }
 }
 
 BLYNK_WRITE(V8)//aqua
 {
-   for (int i = 0; i < Pixels; i++) 
-  {
-    strip.setPixelColor(i, strip.Color(0, 255, 255)); //  background color leds
-    strip.show(); // This sends the updated pixel color to the hardware.
-    delay(50);
+   red = 0;
+   green = 255;
+   blue = 255;
+   setall(red,green,blue);
   
-  //setall(red,green,blue);
-  }
 }
-BLYNK_WRITE(V9)//brightness
+BLYNK_WRITE(V9)//nightlight
 {
-   for (int i = 0; i < Pixels; i++) 
-  {
-    strip.setPixelColor(i, strip.Color(20, 20, 20)); //  background color leds
-    strip.show(); // This sends the updated pixel color to the hardware.
-    delay(50);
+  red = 20;
+  green = 20;
+  blue = 20;
+  setall(red,green,blue);
   
-  //setall(red,green,blue);
-  }
 }
 
 void loop()
 {
-  Blynk.run();
+  if(Blynk.connected())
+    Blynk.run();
+  timer.run();
   if (strb == 1 && rain != 1 && rndstrb != 1 && twinkle != 1)
     strobe();
+  
   if (rain == 1 && strb != 1 && rndstrb != 1 && twinkle != 1)
     rainbowCycle(5);
+  
   if (rndstrb == 1 && strb != 1 && rain != 1 && twinkle != 1)
-    randstrobe();
+      randstrobe();
+  
   if (twinkle == 1 && strb != 1 && rain != 1 && rndstrb != 1)
     Twinkle();
+  
+  if (strb == 0 && rain == 0 && rndstrb == 0 && twinkle == 0)
+    setall(red,green,blue);
 }
-
