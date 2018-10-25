@@ -46,7 +46,7 @@ int strb;
 int rain;
 int rndstrb;
 int twinkle;
-int onn_off;
+
 
 uint8_t myColors[][3] = {{232, 100, 255},   // purple
   {255,0,0},
@@ -215,16 +215,17 @@ void conpin()
   webSocket.sendPing();
   ESP.wdtFeed();
 }
+
 void turnOn(String deviceId) 
 {
   if (deviceId == "5bcb7c61a4582b53259db378") // Device ID of first device
   {  
     Serial.print("Turn on device id: ");
     Serial.println(deviceId);
-    onn_off = 1;
     red = 255;
     green = 255;
     blue = 255;
+    setall(red,green.blue);
   }      
 }
 
@@ -234,8 +235,37 @@ void turnOff(String deviceId)
    {  
      Serial.print("Turn off Device ID: ");
      Serial.println(deviceId);
-     onn_off = 0;
+     setall(0,0,0);
    }
+}
+
+void brightness(String deviceId,int brightness) 
+{
+   if (deviceId == "5bcb7c61a4582b53259db378") // Device ID of first device
+   {  
+     Serial.println(brigh); 
+     strip.setBrightness(255*brightness/100);
+     strip.show();
+   }
+}
+
+void color(String deviceId, int color)
+{
+          if (deviceId == "5bcb7c61a4582b53259db378")
+          {
+            red = c/(65536);
+
+            green = (c/256) % 256;
+
+            blue = c%256;
+            
+            setall(red,green,blue);
+          
+            Serial.println(c);
+            Serial.println(red);
+            Serial.println(green);
+            Serial.println(blue);  
+          }
 }
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) 
@@ -270,14 +300,12 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
         if(action == "action.devices.commands.OnOff") 
         {
             String value = json ["value"]["on"];
-            Serial.println(value);
-            int brigh = json ["value"]["brightness"];
-            Serial.println(brigh); 
-            
+            Serial.println(value);           
             if(value == "true") 
             {
                 turnOn(deviceId);
-            } else 
+            } 
+            else 
             {
                 turnOff(deviceId);
             }
@@ -285,25 +313,12 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
         else if (action == "action.devices.commands.BrightnessAbsolute")
         {
           int a = json ["value"]["brightness"];
-          Serial.println(a);
-          strip.setBrightness(255*a/100);
-          strip.show();
-          
+          brightness(deviceId,a);          
         }
         else if (action == "action.devices.commands.ColorAbsolute")
         {
           int c = json["value"]["color"]["spectrumRGB"];
-          
-          red = c/(65536);
-
-          green = (c/256) % 256;
-
-          blue = c%256;
-          
-          Serial.println(c);
-          Serial.println(red);
-          Serial.println(green);
-          Serial.println(blue);  
+          color(deviceId,c);
         }
         
         else if (action == "test") 
@@ -312,7 +327,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
         }
       }
       break;
-    case WStype_BIN:
+      case WStype_BIN:
       Serial.printf("[WSc] get binary length: %u\n", length);
       break;
   }
@@ -418,7 +433,7 @@ BLYNK_WRITE(V8)//aqua
 }
 BLYNK_WRITE(V9)//nightlight
 {
-  onn_off = param.asInt();
+  setall(50,50,50);
 }
 
 
@@ -440,23 +455,18 @@ void loop()
           webSocket.sendTXT("H");          
       }
   }
-    if(onn_off == 1)
-      setall(red,green,blue);
     
-    if (strb == 1 && rain != 1 && rndstrb != 1 && twinkle != 1 && onn_off == 1)
+    if (strb == 1 && rain != 1 && rndstrb != 1 && twinkle != 1)
       strobe();
   
-    if (rain == 1 && strb != 1 && rndstrb != 1 && twinkle != 1 && onn_off == 1)
+    if (rain == 1 && strb != 1 && rndstrb != 1 && twinkle != 1)
       rainbowCycle(5);
   
-    if (rndstrb == 1 && strb != 1 && rain != 1 && twinkle != 1 && onn_off == 1)
+    if (rndstrb == 1 && strb != 1 && rain != 1 && twinkle != 1)
         randstrobe();
   
-    if (twinkle == 1 && strb != 1 && rain != 1 && rndstrb != 1 && onn_off == 1)
+    if (twinkle == 1 && strb != 1 && rain != 1 && rndstrb != 1)
       Twinkle();
-  
-    if (onn_off == 0)
-      setall(0,0,0);
      
     ESP.wdtFeed();
       delay(500);
